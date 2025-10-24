@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {Test, console} from "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 import {Token} from "../src/Token.sol";
 import {Identity} from "../src/Identity.sol";
 import {IdentityRegistry} from "../src/IdentityRegistry.sol";
@@ -10,7 +10,6 @@ import {ClaimTopicsRegistry} from "../src/ClaimTopicsRegistry.sol";
 import {MaxBalanceCompliance} from "../src/compliance/MaxBalanceCompliance.sol";
 import {MaxHoldersCompliance} from "../src/compliance/MaxHoldersCompliance.sol";
 import {TransferLockCompliance} from "../src/compliance/TransferLockCompliance.sol";
-import {ICompliance} from "../src/ICompliance.sol";
 
 contract TokenTest is Test {
     Token public token;
@@ -229,7 +228,8 @@ contract TokenTest is Test {
         vm.warp(block.timestamp + LOCK_PERIOD + 1);
 
         vm.prank(user1);
-        token.transfer(user2, 50 * 10**18);
+        bool success = token.transfer(user2, 50 * 10**18);
+        assertTrue(success);
 
         assertEq(token.balanceOf(user1), 50 * 10**18);
         assertEq(token.balanceOf(user2), 50 * 10**18);
@@ -242,7 +242,8 @@ contract TokenTest is Test {
         // Try to transfer before lock expires
         vm.prank(user1);
         vm.expectRevert("Transfer not compliant");
-        token.transfer(user2, 50 * 10**18);
+        bool success = token.transfer(user2, 50 * 10**18);
+        assertFalse(success);
     }
 
     function test_Transfer_FailsWhenExceedsMaxBalance() public {
@@ -255,7 +256,8 @@ contract TokenTest is Test {
         // Try to transfer amount that would exceed max balance
         vm.prank(user1);
         vm.expectRevert("Transfer not compliant");
-        token.transfer(user2, 600 * 10**18);
+        bool success = token.transfer(user2, 600 * 10**18);
+        assertFalse(success);
     }
 
     function test_FreezeAccount() public {
@@ -282,7 +284,8 @@ contract TokenTest is Test {
         // Try to transfer
         vm.prank(user1);
         vm.expectRevert("Transfer not compliant");
-        token.transfer(user2, 50 * 10**18);
+        bool success = token.transfer(user2, 50 * 10**18);
+        assertFalse(success);
     }
 
     function test_Pause() public {
@@ -309,7 +312,8 @@ contract TokenTest is Test {
         // Try to transfer
         vm.prank(user1);
         vm.expectRevert("Transfer not compliant");
-        token.transfer(user2, 50 * 10**18);
+        bool success = token.transfer(user2, 50 * 10**18);
+        assertFalse(success);
     }
 
     function test_ForcedTransfer() public {
@@ -401,7 +405,8 @@ contract TokenTest is Test {
 
         // 5. Execute transfer
         vm.prank(user1);
-        token.transfer(user2, 100 * 10**18);
+        bool success = token.transfer(user2, 100 * 10**18);
+        assertTrue(success);
 
         // 6. Verify balances
         assertEq(token.balanceOf(user1), 400 * 10**18);

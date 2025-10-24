@@ -3,7 +3,6 @@ pragma solidity ^0.8.20;
 
 import {Script, console} from "forge-std/Script.sol";
 import {Token} from "../src/Token.sol";
-import {Identity} from "../src/Identity.sol";
 import {IdentityRegistry} from "../src/IdentityRegistry.sol";
 import {TrustedIssuersRegistry} from "../src/TrustedIssuersRegistry.sol";
 import {ClaimTopicsRegistry} from "../src/ClaimTopicsRegistry.sol";

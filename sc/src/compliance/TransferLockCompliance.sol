@@ -18,12 +18,20 @@ contract TransferLockCompliance is ICompliance, Ownable {
 
     // Mapping from address to their lock end time
     mapping(address => uint256) private lockEndTime;
+    
+    // Mapping of authorized callers (for use with ComplianceAggregator)
+    mapping(address => bool) public authorizedCallers;
 
     event LockPeriodSet(uint256 lockPeriod);
     event TransferLocked(address indexed account, uint256 lockEndTime);
+    event AuthorizedCallerAdded(address indexed caller);
+    event AuthorizedCallerRemoved(address indexed caller);
 
-    modifier onlyToken() {
-        require(msg.sender == tokenContract, "Only token contract can call");
+    modifier onlyTokenOrAuthorized() {
+        require(
+            msg.sender == tokenContract || authorizedCallers[msg.sender],
+            "Only token contract or authorized caller"
+        );
         _;
     }
 
@@ -51,6 +59,25 @@ contract TransferLockCompliance is ICompliance, Ownable {
     }
 
     /**
+     * @dev Add an authorized caller (e.g., ComplianceAggregator)
+     * @param caller Address to authorize
+     */
+    function addAuthorizedCaller(address caller) external onlyOwner {
+        require(caller != address(0), "Invalid caller address");
+        authorizedCallers[caller] = true;
+        emit AuthorizedCallerAdded(caller);
+    }
+
+    /**
+     * @dev Remove an authorized caller
+     * @param caller Address to deauthorize
+     */
+    function removeAuthorizedCaller(address caller) external onlyOwner {
+        authorizedCallers[caller] = false;
+        emit AuthorizedCallerRemoved(caller);
+    }
+
+    /**
      * @dev Check if sender can transfer (lock period expired)
      * @param from Sender address
      */
@@ -63,7 +90,7 @@ contract TransferLockCompliance is ICompliance, Ownable {
      * @dev Called after transfer to set lock on recipient
      * @param to Recipient address
      */
-    function transferred(address /* from */, address to, uint256 /* amount */) external override onlyToken {
+    function transferred(address /* from */, address to, uint256 /* amount */) external override onlyTokenOrAuthorized {
         // Set lock period for recipient
         uint256 newLockEndTime = block.timestamp + lockPeriod;
         lockEndTime[to] = newLockEndTime;
@@ -74,7 +101,7 @@ contract TransferLockCompliance is ICompliance, Ownable {
      * @dev Called after minting to set lock on recipient
      * @param to Recipient address
      */
-    function created(address to, uint256 /* amount */) external override onlyToken {
+    function created(address to, uint256 /* amount */) external override onlyTokenOrAuthorized {
         // Set lock period for new token holder
         uint256 newLockEndTime = block.timestamp + lockPeriod;
         lockEndTime[to] = newLockEndTime;
@@ -84,7 +111,7 @@ contract TransferLockCompliance is ICompliance, Ownable {
     /**
      * @dev Called after burning - no action needed for this module
      */
-    function destroyed(address /* from */, uint256 /* amount */) external override onlyToken {
+    function destroyed(address /* from */, uint256 /* amount */) external override onlyTokenOrAuthorized {
         // No state changes needed
     }
 

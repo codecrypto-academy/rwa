@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {Test, console} from "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 import {MaxHoldersCompliance} from "../src/compliance/MaxHoldersCompliance.sol";
 
 contract MockToken {
@@ -270,17 +270,17 @@ contract MaxHoldersComplianceTest is Test {
     }
 
     function test_RevertWhen_TransferredNotCalledByToken() public {
-        vm.expectRevert("Only token contract can call");
+        vm.expectRevert("Only token contract or authorized caller");
         compliance.transferred(user1, user2, 100);
     }
 
     function test_RevertWhen_CreatedNotCalledByToken() public {
-        vm.expectRevert("Only token contract can call");
+        vm.expectRevert("Only token contract or authorized caller");
         compliance.created(user1, 100);
     }
 
     function test_RevertWhen_DestroyedNotCalledByToken() public {
-        vm.expectRevert("Only token contract can call");
+        vm.expectRevert("Only token contract or authorized caller");
         compliance.destroyed(user1, 100);
     }
 

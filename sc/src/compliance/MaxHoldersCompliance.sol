@@ -21,13 +21,21 @@ contract MaxHoldersCompliance is ICompliance, Ownable {
 
     // Mapping to track if address is a holder
     mapping(address => bool) private isHolder;
+    
+    // Mapping of authorized callers (for use with ComplianceAggregator)
+    mapping(address => bool) public authorizedCallers;
 
     event MaxHoldersSet(uint256 maxHolders);
     event HolderAdded(address indexed holder);
     event HolderRemoved(address indexed holder);
+    event AuthorizedCallerAdded(address indexed caller);
+    event AuthorizedCallerRemoved(address indexed caller);
 
-    modifier onlyToken() {
-        require(msg.sender == tokenContract, "Only token contract can call");
+    modifier onlyTokenOrAuthorized() {
+        require(
+            msg.sender == tokenContract || authorizedCallers[msg.sender],
+            "Only token contract or authorized caller"
+        );
         _;
     }
 
@@ -56,6 +64,25 @@ contract MaxHoldersCompliance is ICompliance, Ownable {
     }
 
     /**
+     * @dev Add an authorized caller (e.g., ComplianceAggregator)
+     * @param caller Address to authorize
+     */
+    function addAuthorizedCaller(address caller) external onlyOwner {
+        require(caller != address(0), "Invalid caller address");
+        authorizedCallers[caller] = true;
+        emit AuthorizedCallerAdded(caller);
+    }
+
+    /**
+     * @dev Remove an authorized caller
+     * @param caller Address to deauthorize
+     */
+    function removeAuthorizedCaller(address caller) external onlyOwner {
+        authorizedCallers[caller] = false;
+        emit AuthorizedCallerRemoved(caller);
+    }
+
+    /**
      * @dev Check if a transfer would exceed max holders
      * @param to Recipient address
      */
@@ -78,7 +105,7 @@ contract MaxHoldersCompliance is ICompliance, Ownable {
      * @param from Sender address
      * @param to Recipient address
      */
-    function transferred(address from, address to, uint256 /* amount */) external override onlyToken {
+    function transferred(address from, address to, uint256 /* amount */) external override onlyTokenOrAuthorized {
         // Get balances from token contract
         (bool successFrom, bytes memory dataFrom) = tokenContract.staticcall(
             abi.encodeWithSignature("balanceOf(address)", from)
@@ -112,7 +139,7 @@ contract MaxHoldersCompliance is ICompliance, Ownable {
      * @param to Recipient address
      * @param amount Mint amount
      */
-    function created(address to, uint256 amount) external override onlyToken {
+    function created(address to, uint256 amount) external override onlyTokenOrAuthorized {
         if (!isHolder[to] && amount > 0) {
             isHolder[to] = true;
             holderCount++;
@@ -124,7 +151,7 @@ contract MaxHoldersCompliance is ICompliance, Ownable {
      * @dev Called after burning
      * @param from Address from which tokens are burned
      */
-    function destroyed(address from, uint256 /* amount */) external override onlyToken {
+    function destroyed(address from, uint256 /* amount */) external override onlyTokenOrAuthorized {
         // Get balance from token contract
         (bool success, bytes memory data) = tokenContract.staticcall(
             abi.encodeWithSignature("balanceOf(address)", from)

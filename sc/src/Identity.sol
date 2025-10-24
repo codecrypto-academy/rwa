@@ -62,7 +62,16 @@ contract Identity is Ownable {
 
         emit ClaimAdded(_topic, _scheme, _issuer, _signature, _data, _uri);
 
-        return keccak256(abi.encode(_issuer, _topic));
+        bytes32 claimId;
+        assembly {
+            // Store issuer at memory position 0x00
+            mstore(0x00, _issuer)
+            // Store topic at memory position 0x20
+            mstore(0x20, _topic)
+            // Hash 64 bytes (2 * 32 bytes)
+            claimId := keccak256(0x00, 0x40)
+        }
+        return claimId;
     }
 
     /**

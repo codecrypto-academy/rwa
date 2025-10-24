@@ -8,6 +8,7 @@ import {IdentityRegistry} from "./IdentityRegistry.sol";
 import {TrustedIssuersRegistry} from "./TrustedIssuersRegistry.sol";
 import {ClaimTopicsRegistry} from "./ClaimTopicsRegistry.sol";
 import {ICompliance} from "./ICompliance.sol";
+import {ComplianceAggregator} from "./compliance/ComplianceAggregator.sol";
 
 /**
  * @title Token
@@ -315,5 +316,83 @@ contract Token is ERC20, AccessControl, Pausable {
             modules[i] = address(complianceModules[i]);
         }
         return modules;
+    }
+
+    // ============ ComplianceAggregator Integration ============
+
+    /**
+     * @dev Add a compliance module through the ComplianceAggregator
+     * @param aggregator ComplianceAggregator address
+     * @param module Compliance module address
+     */
+    function addModuleThroughAggregator(
+        address aggregator,
+        address module
+    ) external onlyRole(COMPLIANCE_ROLE) {
+        require(aggregator != address(0), "Invalid aggregator address");
+        require(module != address(0), "Invalid module address");
+
+        // Check that the aggregator is already added as a compliance module
+        bool aggregatorFound = false;
+        for (uint256 i = 0; i < complianceModules.length; i++) {
+            if (address(complianceModules[i]) == aggregator) {
+                aggregatorFound = true;
+                break;
+            }
+        }
+        require(aggregatorFound, "Aggregator not added as compliance module");
+
+        // Call aggregator to add the module
+        ComplianceAggregator(aggregator).addModule(address(this), module);
+    }
+
+    /**
+     * @dev Remove a compliance module through the ComplianceAggregator
+     * @param aggregator ComplianceAggregator address
+     * @param module Compliance module address
+     */
+    function removeModuleThroughAggregator(
+        address aggregator,
+        address module
+    ) external onlyRole(COMPLIANCE_ROLE) {
+        require(aggregator != address(0), "Invalid aggregator address");
+        require(module != address(0), "Invalid module address");
+
+        // Call aggregator to remove the module
+        ComplianceAggregator(aggregator).removeModule(address(this), module);
+    }
+
+    /**
+     * @dev Get all modules from the ComplianceAggregator
+     * @param aggregator ComplianceAggregator address
+     * @return Array of module addresses
+     */
+    function getAggregatorModules(address aggregator) external view returns (address[] memory) {
+        require(aggregator != address(0), "Invalid aggregator address");
+        return ComplianceAggregator(aggregator).getModules(address(this));
+    }
+
+    /**
+     * @dev Get module count from the ComplianceAggregator
+     * @param aggregator ComplianceAggregator address
+     * @return Number of modules
+     */
+    function getAggregatorModuleCount(address aggregator) external view returns (uint256) {
+        require(aggregator != address(0), "Invalid aggregator address");
+        return ComplianceAggregator(aggregator).getModuleCount(address(this));
+    }
+
+    /**
+     * @dev Check if a module is active in the ComplianceAggregator
+     * @param aggregator ComplianceAggregator address
+     * @param module Module address
+     * @return True if module is active
+     */
+    function isModuleActiveInAggregator(
+        address aggregator,
+        address module
+    ) external view returns (bool) {
+        require(aggregator != address(0), "Invalid aggregator address");
+        return ComplianceAggregator(aggregator).isModuleActiveForToken(address(this), module);
     }
 }
